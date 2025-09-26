@@ -6,7 +6,7 @@ import userRouters from "./routers/userRouters.js";
 import assignmentRouters from "./routers/assignmentRouters.js";
 import attendanceRouters from "./routers/attendanceRouters.js";
 import marksRouters from "./routers/marksRouters.js";
-import notificationRouters from "./routers/notificationRouters.js";
+
 import adminRouters from "./routers/adminRouters.js";
 import departmentAdminRouters from "./routers/departmentAdminRouters.js";
 import accessRouters from "./routers/accessRouters.js";
@@ -16,6 +16,8 @@ import batchRouters from "./routers/batchRouters.js";
 import teacherRouters from "./routers/teacherRouters.js";
 import examRouters from "./routers/examRouters.js";
 import studentRouters from "./routers/studentRouters.js";
+import announcementRoutes from "./routers/announcementRoutes.js";
+
 
 import "./util/semesterScheduler.js";
 
@@ -45,9 +47,10 @@ app.use("/api/attendance", attendanceRouters);
 app.use("/api/marks", marksRouters);
 app.use("/api/exams", examRouters);
 app.use("/api/students", studentRouters);
+app.use("/api/announcements", announcementRoutes);
 
 
-app.use("/api/notifications", notificationRouters); //major project
+ //major project
 mongoose.connect(process.env.MONGO_URI)
 .then(() => {
   console.log("MongoDB connected successfully");

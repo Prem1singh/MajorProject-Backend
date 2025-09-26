@@ -14,7 +14,7 @@ export const authMiddleware = async (req, res, next) => {
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Fetch user without sensitive fields
+      // Fetch user without sensitive fields and populate batch
       const user = await User.findById(decoded.id)
         .select("-password -refreshToken -resetPasswordToken -resetPasswordExpire")
         .populate({
@@ -36,4 +36,14 @@ export const authMiddleware = async (req, res, next) => {
   } else {
     return res.status(401).json({ message: "Not authorized, no token" });
   }
+};
+
+// -------------------- Role-based Authorization --------------------
+export const authorizeRoles = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ message: "Forbidden: Access denied." });
+    }
+    next();
+  };
 };
