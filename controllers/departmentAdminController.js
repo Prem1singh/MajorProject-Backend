@@ -843,6 +843,7 @@ export const getMarks = async (req, res) => {
         grouped[key] = {
           id: key,
           name: student ? m.subject.name : m.student.name,
+          rollNo: student ? m.subject.rollNo : m.student.rollNo,
         };
         // initialize all exam columns dynamically to null
         exams.forEach((exam) => {

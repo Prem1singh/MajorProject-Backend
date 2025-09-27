@@ -110,7 +110,7 @@ export const getMarks = async (req, res) => {
 
     // 2️⃣ Fetch all marks for this subject for all exams
     const marks = await Marks.find({ subject: subjectId })
-      .populate("user", "name rollNo")
+      .populate("student", "name rollNo")
       .lean();
 
     // 3️⃣ Transform data to show marks per student grouped by exam type
