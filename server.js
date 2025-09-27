@@ -17,6 +17,8 @@ import teacherRouters from "./routers/teacherRouters.js";
 import examRouters from "./routers/examRouters.js";
 import studentRouters from "./routers/studentRouters.js";
 import announcementRoutes from "./routers/announcementRoutes.js";
+import studyMaterialRoutes from "./routers/studyMaterialRoutes.js";
+import doubtsRouters from "./routers/doubtsRouters.js";
 
 
 import "./util/semesterScheduler.js";
@@ -48,6 +50,8 @@ app.use("/api/marks", marksRouters);
 app.use("/api/exams", examRouters);
 app.use("/api/students", studentRouters);
 app.use("/api/announcements", announcementRoutes);
+app.use("/api/study", studyMaterialRoutes);
+app.use("/api/doubts", doubtsRouters);
 
 
  //major project

@@ -9,6 +9,8 @@ import Batch from "../models/Batch.js";
 import AssignmentSubmission from "../models/AssignmentSubmission.js";
 import mongoose from "mongoose";
 import { sendCredentialsEmail } from "../util/emailService.js";
+import Marks from "../models/Marks.js";
+import Exam from "../models/Exam.js";
 // --------------------
 // Add Student
 // --------------------
@@ -609,27 +611,6 @@ export const getTeacherById = async (req, res) => {
 
 
 
-
-// export const getAllStudents = async (req, res) => {
-//   try {
-//     // Only DepartmentAdmin can access
-
-//     if (req.user.role !== "DepartmentAdmin") {
-//       return res.status(403).json({ message: "Access denied. Department Admins only." });
-//     }
-
-//     // Fetch all students in the admin's department
-//     const students = await User.find({ role: "Student", "department": req.user.department })
-//       .select("name email rollNo batch year section") // select necessary fields
-//       .populate("batch", "name code"); // show batch info
-
-//     res.status(200).json(students);
-//   } catch (err) {
-//     console.error("Get All Students Error:", err);
-//     res.status(500).json({ message: "Server error", error: err.message });
-//   }
-// };
-
 export const getStudents = async (req, res) => {
   try {
     const { batchId } = req.query;
@@ -796,5 +777,87 @@ export const getDeptAdminOverview = async (req, res) => {
   } catch (err) {
     console.error("Error in getDeptAdminOverview:", err);
     res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+export const getStudentsByBatch = async (req, res) => {
+  try {
+    const { batch } = req.query;
+    if (!batch) return res.status(400).json({ message: "Batch is required" });
+
+    const students = await Student.find({ batch }).select("_id name").lean();
+    res.json(students);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Get subjects by batch
+export const getSubjectsByBatch = async (req, res) => {
+  try {
+    const { batch } = req.query;
+    if (!batch) return res.status(400).json({ message: "Batch is required" });
+
+    const subjects = await Subject.find({ batch }).select("_id name").lean();
+    res.json(subjects);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Get marks by student or subject
+export const getMarks = async (req, res) => {
+  try {
+    const { student, subject, batch } = req.query;
+
+    if (!student && !subject)
+      return res.status(400).json({ message: "Student or subject is required" });
+    if (!batch) return res.status(400).json({ message: "Batch is required" });
+
+    const query = {};
+    if (student) query.student = student;
+    if (subject) query.subject = subject;
+
+    // Fetch marks with exam info
+    const marks = await Marks.find(query)
+      .populate("student", "name")
+      .populate("subject", "name")
+      .populate("exam", "name type") // exam object
+      .lean();
+
+    // Fetch all exams for the batch to know dynamic columns
+    const exams = await Exam.find({ batch }).select("name type").lean();
+
+    // Group marks dynamically
+    const grouped = {};
+    marks.forEach((m) => {
+      const key = student ? m.subject._id : m.student._id;
+      if (!grouped[key]) {
+        grouped[key] = {
+          id: key,
+          name: student ? m.subject.name : m.student.name,
+        };
+        // initialize all exam columns dynamically to null
+        exams.forEach((exam) => {
+          grouped[key][exam.name] = null;
+        });
+      }
+      // Fill obtained marks dynamically
+      grouped[key][m.exam.name] = m.obtained;
+    });
+
+    // Convert to array for frontend
+    const result = Object.values(grouped);
+
+    // Return dynamic exam list and marks
+    res.json({
+      exams: exams.map((e) => e.name), // frontend can generate columns
+      data: result,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
   }
 };

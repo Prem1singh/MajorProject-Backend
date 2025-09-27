@@ -1,6 +1,7 @@
 import express from "express";
-import { addStudent, addSubject, addTeacher, assignSubjectsToTeacher, deleteSubject, deleteSubjectTeacher, deleteUser, getAllTeachers, getDeptAdminOverview, getSubjectsByTeacher, getTeacherById, updateStudent, updateSubject, updateSubjectTeacher, updateTeacher,getStudents,getSubjects } from "../controllers/departmentAdminController.js";
-import { authMiddleware } from "../middleware/auth.js";
+import { addStudent, addSubject, addTeacher, assignSubjectsToTeacher, deleteSubject, deleteSubjectTeacher, deleteUser, getAllTeachers, getDeptAdminOverview, getSubjectsByTeacher, getTeacherById, updateStudent, updateSubject, updateSubjectTeacher, updateTeacher,getStudents,getSubjects, getSubjectsByBatch, getStudentsByBatch, getMarks } from "../controllers/departmentAdminController.js";
+import { authMiddleware, authorizeRoles } from "../middleware/auth.js";
+
 
 
 const router = express.Router();
@@ -37,5 +38,8 @@ router.get("/subject/teacher/:teacherId", getSubjectsByTeacher);
 router.put("/subject/teacher/:subjectId", updateSubjectTeacher);
 router.delete("/subject/teacher/:subjectId", deleteSubjectTeacher);
 
+router.get("/students", authMiddleware,authorizeRoles("DepartmentAdmin"), getStudentsByBatch);
+router.get("/subjects", authMiddleware,authorizeRoles("DepartmentAdmin"), getSubjectsByBatch);
+router.get("/marks", authMiddleware,authorizeRoles("DepartmentAdmin"), getMarks);
 
 export default router;

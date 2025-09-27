@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Announcement from "../models/Announcement.js";
 import Subject from "../models/Subject.js";
 import User from "../models/User.js";
@@ -6,7 +7,7 @@ import User from "../models/User.js";
 export const createAnnouncement = async (req, res) => {
   try {
     const { title, description, subject } = req.body;
-    console.log(title,description,subject)
+
     if (!title || !description || !subject) {
       return res.status(400).json({ message: "All fields are required." });
     }
@@ -29,7 +30,30 @@ export const createAnnouncement = async (req, res) => {
 export const getAnnouncements = async (req, res) => {
   try {
     const { subject } = req.query;
-    const filter = subject ? { subject } : {};
+    const user = req.user;
+
+    let filter = {};
+
+    if (user.role === "Teacher") {
+      // Fetch all subjects assigned to this teacher
+      const teacherSubjects = await Subject.find({ teacher: user._id }).select("_id");
+      const subjectIds = teacherSubjects.map((s) => s._id);
+
+      // Only allow announcements for these subjects
+      filter.subject = { $in: subjectIds };
+    }
+
+    // Apply subject query filter if provided
+    if (subject) {
+      // Make sure teacher can only filter within their subjects
+      if (filter.subject) {
+        if (!filter.subject.$in.includes(subject)) {
+          return res.json([]); // teacher not allowed to see this subject
+        }
+      }
+      filter.subject = { $in: [subject] };
+    }
+
     const announcements = await Announcement.find(filter)
       .populate("subject", "name")
       .populate("createdBy", "name email")
@@ -88,14 +112,19 @@ export const deleteAnnouncement = async (req, res) => {
   try {
     const { id } = req.params;
     const announcement = await Announcement.findById(id);
-    if (!announcement) return res.status(404).json({ message: "Announcement not found." });
+
+    if (!announcement) {
+      return res.status(404).json({ message: "Announcement not found." });
+    }
 
     // Optional: Check if current user is creator
     if (!announcement.createdBy.equals(req.user._id)) {
       return res.status(403).json({ message: "Not authorized." });
     }
 
-    await announcement.remove();
+    // Use deleteOne on the document
+    await announcement.deleteOne();
+
     res.json({ message: "Announcement deleted successfully." });
   } catch (err) {
     console.error(err);
@@ -109,9 +138,25 @@ export const getAnnouncementsForStudent = async (req, res) => {
     const student = req.user;
     const { subject } = req.query;
 
-    // Assuming student.subjects is an array of enrolled subject IDs
-    let filter = { subject: { $in: student.subjects } };
-    if (subject) filter.subject = subject;
+    // Fetch all subjects for student's batch & semester
+    const batchSubjects = await Subject.find({
+      batch: student.batch,
+    }).select("_id");
+
+    // Convert ObjectIds to strings
+    const subjectIds = batchSubjects.map((s) => s._id.toString());
+
+    // Build filter
+    let filter = { subject: { $in: subjectIds } };
+
+    // If a specific subject is selected (not "all"), filter by that
+    if (subject && subject !== "all") {
+      if (!subjectIds.includes(subject)) {
+        // Student is trying to access a subject not in their batch
+        return res.json([]);
+      }
+      filter.subject =new mongoose.Types.ObjectId(subject); // convert string to ObjectId
+    }
 
     const announcements = await Announcement.find(filter)
       .populate("subject", "name")

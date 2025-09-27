@@ -133,4 +133,22 @@ export const getStudentOverview = async (req, res) => {
   }
 };
 
+export const getSubjectsForStudent = async (req, res) => {
+  try {
+    const student = req.user;
+    if (student.role !== "Student") {
+      return res.status(403).json({ message: "Forbidden: Access denied." });
+    }
+
+    // Assuming student has batch and semester fields
+    const subjects = await Subject.find({
+      batch: student.batch, // optional, if you track active/inactive subjects
+    }).select("_id name code teacher"); // select fields you want to send
+
+    res.json(subjects);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error." });
+  }
+};
 

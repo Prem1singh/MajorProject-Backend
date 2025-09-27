@@ -104,7 +104,7 @@ export const getMarks = async (req, res) => {
     const subjectId = toObjectId(subject);
 
     // 1️⃣ Find all exams for this subject (based on batch of the subject)
-    const exams = await Exam.find({ /* batch determined by backend logic */ })
+    const exams = await Exam.find({ })
       .lean();
 
     if (!exams.length) return res.status(404).json({ message: "No exams found for this subject" });
