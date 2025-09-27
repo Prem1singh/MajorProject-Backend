@@ -104,7 +104,7 @@ export const updateBatch = async (req, res) => {
     const oldSemester = batch.currentSem;
     const newSemester = req.body.currentSem;
 
-    console.log(oldSemester,newSemester)
+
     // Update the batch
     const updatedBatch = await Batch.findByIdAndUpdate(
       req.params.id,
@@ -205,7 +205,7 @@ export const getSubjectsByBatch = async (req, res) => {
     if (!batch) {
       return res.status(404).json({ message: "Batch not found" });
     }
-    console.log(batch)
+
     // ✅ Only fetch subjects for this batch's current semester
     const subjects = await Subject.find({
       batch: batchId,

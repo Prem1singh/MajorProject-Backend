@@ -38,7 +38,7 @@ router.get("/subject/teacher/:teacherId", getSubjectsByTeacher);
 router.put("/subject/teacher/:subjectId", updateSubjectTeacher);
 router.delete("/subject/teacher/:subjectId", deleteSubjectTeacher);
 
-router.get("/students", authMiddleware,authorizeRoles("DepartmentAdmin"), getStudentsByBatch);
-router.get("/subjects", authMiddleware,authorizeRoles("DepartmentAdmin"), getSubjectsByBatch);
+router.get("/students/batch", authMiddleware,authorizeRoles("DepartmentAdmin"), getStudentsByBatch);
+router.get("/subjects/batch", authMiddleware,authorizeRoles("DepartmentAdmin"), getSubjectsByBatch);
 router.get("/marks", authMiddleware,authorizeRoles("DepartmentAdmin"), getMarks);
 export default router;

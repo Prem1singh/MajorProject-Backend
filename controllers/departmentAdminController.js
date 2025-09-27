@@ -783,9 +783,14 @@ export const getDeptAdminOverview = async (req, res) => {
 export const getStudentsByBatch = async (req, res) => {
   try {
     const { batch } = req.query;
+
     if (!batch) return res.status(400).json({ message: "Batch is required" });
 
-    const students = await Student.find({ batch }).select("_id name").lean();
+    // Find users with role "Student" in the given batch
+    const students = await User.find({ role: "Student", batch })
+      .select("_id name")
+      .lean();
+
     res.json(students);
   } catch (err) {
     console.error(err);

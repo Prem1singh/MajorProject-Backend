@@ -132,10 +132,22 @@ export const getSubjectPerformance = async (req, res) => {
 };
 
 // 4️⃣ Department → batch-level performance (with optional subject filter)
+
 export const getDepartmentBatchPerformance = async (req, res) => {
   try {
-    const { subject } = req.query;
-    const query = {  };
+    const { subject, batch } = req.query;
+    const department = req.user.department; // department of the logged-in DepartmentAdmin
+
+    if (!batch) return res.status(400).json({ message: "Batch is required" });
+
+    // 1️⃣ Get students in this department and batch
+    const students = await User.find({ role: "Student", batch, department })
+      .select("_id")
+      .lean();
+    const studentIds = students.map(s => s._id);
+
+    // 2️⃣ Query marks for these students (and subject if provided)
+    const query = { student: { $in: studentIds } };
     if (subject) query.subject = subject;
 
     const marks = await Marks.find(query)
@@ -144,12 +156,14 @@ export const getDepartmentBatchPerformance = async (req, res) => {
       .populate("exam", "name")
       .lean();
 
-    // 1️⃣ Collect all exams
+    if (!marks.length) return res.json({ subjects: [], exams: [], trend: [] });
+
+    // 3️⃣ Collect all exams
     const examsSet = new Set();
     marks.forEach(m => examsSet.add(m.exam.name));
     const exams = Array.from(examsSet);
 
-    // 2️⃣ Collect subjects with marks per exam
+    // 4️⃣ Collect subjects with marks per exam
     const subjectsMap = {};
     marks.forEach(m => {
       const subjName = m.subject.name;
@@ -157,14 +171,14 @@ export const getDepartmentBatchPerformance = async (req, res) => {
       subjectsMap[subjName][m.exam.name] = m.obtained;
     });
 
-    // 3️⃣ Build subjects array with average
+    // 5️⃣ Build subjects array with average
     const subjectsArr = Object.entries(subjectsMap).map(([subj, marksObj]) => {
       const total = Object.values(marksObj).reduce((a, b) => a + b, 0);
       const average = (total / exams.length).toFixed(2);
       return { subject: subj, marks: marksObj, average };
     });
 
-    // 4️⃣ Build trend array (average per exam across all subjects)
+    // 6️⃣ Build trend array (average per exam across all subjects)
     const trend = exams.map(exam => {
       let total = 0, count = 0;
       marks.forEach(m => {
@@ -175,6 +189,7 @@ export const getDepartmentBatchPerformance = async (req, res) => {
       });
       return { exam, average: count ? +(total / count).toFixed(2) : 0 };
     });
+
     res.json({ subjects: subjectsArr, exams, trend });
   } catch (err) {
     console.error(err);

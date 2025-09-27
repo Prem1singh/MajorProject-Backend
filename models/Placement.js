@@ -9,6 +9,7 @@ const placementSchema = new mongoose.Schema(
     description: { type: String },
     date: { type: Date, required: true },
     batches: [{ type: mongoose.Schema.Types.ObjectId, ref: "Batch", required: true }], // ✅ Multiple batches
+    department: { type: mongoose.Schema.Types.ObjectId, ref: "Department", required: true }, // ✅ Added department
     addedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   },
   { timestamps: true }

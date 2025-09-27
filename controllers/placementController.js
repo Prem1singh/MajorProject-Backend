@@ -1,3 +1,4 @@
+import Batch from "../models/Batch.js";
 import Placement from "../models/Placement.js";
 
 // GET placements (students see their batch, admins see all)
@@ -10,8 +11,13 @@ export const getPlacements = async (req, res) => {
       placements = await Placement.find({ batches: req.user.batch })
         .sort({ createdAt: -1 })
         .lean();
+    } else if (req.user.role === "DepartmentAdmin") {
+      // Department Admin → only see placements for their department
+      placements = await Placement.find({ department: req.user.department })
+        .sort({ createdAt: -1 })
+        .lean();
     } else {
-      // Dept Admin / HOD → see all placements
+      // HOD or Admin → see all placements
       placements = await Placement.find().sort({ createdAt: -1 }).lean();
     }
 
@@ -21,7 +27,6 @@ export const getPlacements = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-
 // POST a new placement (Dept Admin only)
 export const addPlacement = async (req, res) => {
   try {
@@ -43,6 +48,7 @@ export const addPlacement = async (req, res) => {
       description,
       date,
       batches,
+      department:req.user.department,
       addedBy: req.user._id,
     });
 
