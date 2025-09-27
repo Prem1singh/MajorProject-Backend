@@ -827,7 +827,7 @@ export const getMarks = async (req, res) => {
 
     // Fetch marks with exam info
     const marks = await Marks.find(query)
-      .populate("student", "name")
+      .populate("student", "name rollNo")
       .populate("subject", "name")
       .populate("exam", "name type") // exam object
       .lean();
