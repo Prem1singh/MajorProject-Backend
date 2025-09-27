@@ -59,7 +59,7 @@ export const postAnswer = async (req, res) => {
 
     const doubt = await Doubt.findById(doubtId);
     if (!doubt) return res.status(404).json({ message: "Doubt not found" });
-    console.log(doubt.batch,req.user.batch)
+   
     // Only allow answering within the same batch
     if (String(doubt.batch) !== String(req.user.batch._id)) {
       return res.status(403).json({ message: "You cannot answer doubts from another batch" });

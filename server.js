@@ -19,6 +19,7 @@ import studentRouters from "./routers/studentRouters.js";
 import announcementRoutes from "./routers/announcementRoutes.js";
 import studyMaterialRoutes from "./routers/studyMaterialRoutes.js";
 import doubtsRouters from "./routers/doubtsRouters.js";
+import placementRouters from "./routers/placementRouters.js";
 
 
 import "./util/semesterScheduler.js";
@@ -52,6 +53,8 @@ app.use("/api/students", studentRouters);
 app.use("/api/announcements", announcementRoutes);
 app.use("/api/study", studyMaterialRoutes);
 app.use("/api/doubts", doubtsRouters);
+app.use("/api/placements", placementRouters);
+
 
 
  //major project

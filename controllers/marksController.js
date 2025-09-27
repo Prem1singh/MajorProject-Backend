@@ -85,7 +85,6 @@ export const getStudentMarks = async (req, res) => {
       .populate("subject", "name code")
       .populate("exam", "name totalMarks type")
       .sort({ createdAt: 1 });
-    console.log(marks)
     res.status(200).json(marks);
   } catch (err) {
     console.error("getStudentMarks Error:", err);
