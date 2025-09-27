@@ -861,3 +861,30 @@ export const getMarks = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+export const getBatchesByDepartment = async (req, res) => {
+  try {
+    const departmentId = req.user.department; // department from logged-in user
+    if (!departmentId) {
+      return res.status(400).json({ message: "Department not found in user data" });
+    }
+
+    // 1️⃣ Get all courses of the department
+    const courses = await Course.find({ department: departmentId }).select("_id").lean();
+    const courseIds = courses.map(c => c._id);
+
+    if (!courseIds.length) {
+      return res.json([]); // no courses → no batches
+    }
+
+    // 2️⃣ Get all batches for these courses
+    const batches = await Batch.find({ course: { $in: courseIds } })
+      .select("_id name")
+      .lean();
+
+    res.json(batches);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
