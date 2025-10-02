@@ -1,6 +1,6 @@
 import express from "express";
 import {authMiddleware} from "../middleware/auth.js";
-import { addExam, deleteExam, getExams } from "../controllers/examController.js";
+import { addExam, deleteExam, getExams, updateExam } from "../controllers/examController.js";
 
 const router = express.Router();
 
@@ -15,5 +15,7 @@ router.post("/", addExam);
 
 // DELETE /exams/:id → delete exam
 router.delete("/:id", deleteExam);
+router.delete("/:id", updateExam);
+
 
 export default router;

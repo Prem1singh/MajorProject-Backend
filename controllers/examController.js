@@ -122,31 +122,41 @@ export const getStudentsAndExamsForSubject = async (req, res) => {
 
 
 // PUT /exams/:id → update an exam
-// export const updateExam = async (req, res) => {
-//     try {
-//       if (!["Admin", "DepartmentAdmin"].includes(req.user.role))
-//         return res.status(403).json({ message: "Not authorized to update exams" });
-  
-//       const { id } = req.params;
-//       const { name, type, totalMarks, description } = req.body;
-  
-//       const examId = toObjectId(id);
-//       if (!examId) return res.status(400).json({ message: "Invalid exam ID" });
-  
-//       const exam = await Exam.findById(examId);
-//       if (!exam) return res.status(404).json({ message: "Exam not found" });
-  
-//       if (name) exam.name = name;
-//       if (type) exam.type = type;
-//       if (totalMarks !== undefined) exam.totalMarks = totalMarks;
-//       if (description !== undefined) exam.description = description;
-  
-//       await exam.save();
-  
-//       res.status(200).json({ message: "Exam updated successfully", exam });
-//     } catch (err) {
-//       console.error("updateExam Error:", err);
-//       res.status(500).json({ message: "Error updating exam", error: err.message });
-//     }
-//   };
-  
+export const updateExam = async (req, res) => {
+  try {
+    // Authorization check
+    if (!["Admin", "DepartmentAdmin"].includes(req.user.role)) {
+      return res.status(403).json({ message: "Not authorized to update exams" });
+    }
+
+    const { id } = req.params;
+    const { name, type, totalMarks, description } = req.body;
+
+    // Validate ID
+    const examId = toObjectId(id);
+    if (!examId) return res.status(400).json({ message: "Invalid exam ID" });
+
+    // Fetch exam
+    const exam = await Exam.findById(examId);
+    if (!exam) return res.status(404).json({ message: "Exam not found" });
+
+    // Update fields if provided
+    if (name) exam.name = name;
+    if (type && ["sessional", "assignment", "attendance", "semester"].includes(type)) {
+      exam.type = type;
+    }
+    if (totalMarks !== undefined) {
+      const marks = Number(totalMarks);
+      if (isNaN(marks)) return res.status(400).json({ message: "Total marks must be a number" });
+      exam.totalMarks = marks;
+    }
+    if (description !== undefined) exam.description = description;
+
+    await exam.save();
+
+    res.status(200).json({ message: "Exam updated successfully", exam });
+  } catch (err) {
+    console.error("updateExam Error:", err);
+    res.status(500).json({ message: "Error updating exam", error: err.message });
+  }
+};
