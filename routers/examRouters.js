@@ -15,7 +15,7 @@ router.post("/", addExam);
 
 // DELETE /exams/:id → delete exam
 router.delete("/:id", deleteExam);
-router.delete("/:id", updateExam);
+router.put("/:id", updateExam);
 
 
 export default router;

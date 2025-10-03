@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 import Subject from "./Subject.js";
+import Doubt from "./Doubt.js";
+import Placement from "./Placement.js";
 
 const batchSchema = new mongoose.Schema(
   {
@@ -45,13 +47,23 @@ const batchSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-batchSchema.pre("findOneAndDelete", async function (next) {
-  const batchId = this.getQuery()["_id"];
+// batchSchema.pre("findOneAndDelete", async function (next) {
+//   const batchId = this.getQuery()["_id"];
 
-  await Subject.deleteMany({ batch: batchId });
+//   // Delete all subjects in this batch → triggers subject hook
+//   await Subject.deleteMany({ batch: batchId });
 
-  next();
-});
+//   // Delete all doubts associated with this batch
+//   await Doubt.deleteMany({ batch: batchId });
+
+//   // Remove this batch from all placements' batches array
+//   await Placement.updateMany(
+//     { batches: batchId },
+//     { $pull: { batches: batchId } }
+//   );
+
+//   next();
+// });
 
 const Batch = mongoose.model("Batch", batchSchema);
 export default Batch;

@@ -11,6 +11,7 @@ import mongoose from "mongoose";
 import { sendCredentialsEmail } from "../util/emailService.js";
 import Marks from "../models/Marks.js";
 import Exam from "../models/Exam.js";
+import { cascadeDeleteStudent, cascadeDeleteSubject } from "../util/cascade.js";
 // --------------------
 // Add Student
 // --------------------
@@ -367,13 +368,7 @@ export const deleteSubject = async (req, res) => {
       return res.status(404).json({ message: "Subject not found" });
     }
 
-    // Delete assignments of this subject
-    const assignments = await Assignment.find({ subject: subject._id });
-    await AssignmentSubmission.deleteMany({ assignment: { $in: assignments.map(a => a._id) } });
-    await Assignment.deleteMany({ subject: subject._id });
-
-    // Delete attendance linked to this subject
-    await Attendance.deleteMany({ subject: subject._id });
+    await cascadeDeleteSubject(subject._id)
 
     // Finally delete subject
     await Subject.findByIdAndDelete(subject._id);
@@ -541,8 +536,8 @@ export const deleteUser = async (req, res) => {
 
     // Cascade handling based on role
     if (user.role === "Student") {
-      await AssignmentSubmission.deleteMany({ student: user._id });
-      await Attendance.deleteMany({ student: user._id });
+      await cascadeDeleteStudent(id); // cascade delete marks, assignments, etc.
+      await User.findByIdAndDelete(id);
     }
 
     if (user.role === "Teacher") {
@@ -613,42 +608,36 @@ export const getTeacherById = async (req, res) => {
 
 export const getStudents = async (req, res) => {
   try {
-    const { batchId } = req.query;
+    const { batch:batchId } = req.query;
     let query = { role: "Student" };
 
-    // 🔹 Restrict DepartmentAdmin to their own department
     if (req.user.role === "DepartmentAdmin") {
-      // 1️⃣ Get courses in this department
-      const courses = await Course.find({ department: req.user.department }).select("_id");
-      const courseIds = courses.map(c => c._id);
-
-      // 2️⃣ Get batches in those courses
-      const batches = await Batch.find({ course: { $in: courseIds } }).select("_id");
-      const batchIds = batches.map(b => b._id.toString()); // convert to string for comparison
-
       if (batchId) {
-        // ✅ Only allow if batch belongs to this department
-        if (!batchIds.includes(batchId)) {
-          return res.status(403).json({ message: "Access denied for this batch" });
-        }
+        // ✅ Fetch students of this batch (but batch must belong to same department)
         query.batch = new mongoose.Types.ObjectId(batchId);
+        query.department = req.user.department;
       } else {
-        // ✅ All batches in department
-        query.batch = { $in: batchIds.map(id => new mongoose.Types.ObjectId(id)) };
+        // ✅ Fetch all students of this department
+        query.department = req.user.department;
       }
     } else {
-      // Admin can query any batch
-      if (batchId) query.batch = new mongoose.Types.ObjectId(batchId);
+      // 🔹 SuperAdmin or higher roles
+      if (batchId) {
+        query.batch = new mongoose.Types.ObjectId(batchId);
+      }
+      // else → fetch all students (no restriction)
     }
 
-    const students = await User.find(query).populate("batch", "name code");
+    const students = await User.find(query)
+      .populate("department", "name code")
+      .populate("batch", "name code");
+
     res.status(200).json(students);
   } catch (err) {
     console.error("Error fetching students:", err);
     res.status(500).json({ message: "Failed to fetch students", error: err.message });
   }
 };
-
 
 // ✅ GET /department-admin/overview
 export const getDeptAdminOverview = async (req, res) => {
@@ -784,19 +773,21 @@ export const getStudentsByBatch = async (req, res) => {
   try {
     const { batch } = req.query;
 
-    if (!batch) return res.status(400).json({ message: "Batch is required" });
+    if (!batch) {
+      return res.status(400).json({ message: "Batch query param is required" });
+    }
 
-    // Find users with role "Student" in the given batch
     const students = await User.find({ role: "Student", batch })
       .select("_id name")
       .lean();
 
     res.json(students);
   } catch (err) {
-    console.error(err);
+    console.error("Get Students by Batch Error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 // Get subjects by batch
 export const getSubjectsByBatch = async (req, res) => {

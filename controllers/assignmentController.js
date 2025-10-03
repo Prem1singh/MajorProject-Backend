@@ -9,6 +9,7 @@ import Batch from "../models/Batch.js";
 // -----------------------------
 
 import Subject from "../models/Subject.js";
+import { cascadeDeleteAssignment } from "../util/cascade.js";
 
 export const createAssignment = async (req, res) => {
   try {
@@ -57,46 +58,6 @@ export const createAssignment = async (req, res) => {
   }
 };
 
-
-// -----------------------------
-// GET ALL ASSIGNMENTS (Role-Based)
-// -----------------------------
-// export const getAssignments = async (req, res) => {
-//   try {
-//     let assignments;
-
-//     if (req.user.role === "Student") {
-//       assignments = await Assignment.find({ batch: req.user.batch })
-//         .populate("uploadedBy", "name email role")
-//         .populate("batch", "name");
-//     } else if (req.user.role === "Teacher") {
-//       // teacher sees assignments of batches they handle
-//       const batches = await Batch.find({ _id: { $in: req.user.batches } });
-//       const batchIds = batches.map(b => b._id);
-
-//       assignments = await Assignment.find({ batch: { $in: batchIds } })
-//         .populate("uploadedBy", "name email role")
-//         .populate("batch", "name");
-//     } else {
-//       // Admin or DepartmentAdmin: see all assignments
-//       assignments = await Assignment.find()
-//         .populate("uploadedBy", "name email role")
-//         .populate("batch", "name");
-//     }
-
-//     res.status(200).json(assignments);
-//   } catch (err) {
-//     console.error("Error fetching assignments:", err);
-//     res.status(500).json({ message: "Error fetching assignments", error: err.message });
-//   }
-// };
-
-// -----------------------------
-// GET ASSIGNMENT BY ID
-// -----------------------------
-
-
-// ✅ Get assignments created by the logged-in teacher
 export const getMyAssignments = async (req, res) => {
   try {
     // Step 1️⃣: Find assignments created by teacher (with subject + batch info)
@@ -185,11 +146,9 @@ export const deleteAssignment = async (req, res) => {
       return res.status(403).json({ message: "Not authorized to delete this assignment" });
     }
 
-    // Delete all submissions linked to this assignment
-    await AssignmentSubmission.deleteMany({ assignment: assignment._id });
+    await cascadeDeleteAssignment(assignment._id)
 
-    // Delete the assignment itself
-    await assignment.deleteOne();
+   await Assignment.deleteOne(assignment._id)
 
     res.status(200).json({ message: "Assignment and related submissions deleted successfully" });
   } catch (err) {

@@ -4,6 +4,7 @@ import {
   addPlacement,
   getPlacements,
   deletePlacement,
+  updatePlacement,
 } from "../controllers/placementController.js";
 
 const router = express.Router();
@@ -13,6 +14,8 @@ router.post("/", authMiddleware, authorizeRoles("DepartmentAdmin"), addPlacement
 
 // ✅ Students + Admin: Get placements
 router.get("/", authMiddleware, getPlacements);
+
+router.put("/:id", authMiddleware, updatePlacement);
 
 // ✅ HOD / Department Admin: Delete placement
 router.delete("/:id", authMiddleware, authorizeRoles("DepartmentAdmin"), deletePlacement);

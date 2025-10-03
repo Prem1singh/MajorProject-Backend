@@ -1,6 +1,6 @@
 import Batch from "../models/Batch.js";
 import Placement from "../models/Placement.js";
-
+import toObjectId  from "../util/toObjectId.js";
 // GET placements (students see their batch, admins see all)
 export const getPlacements = async (req, res) => {
   try {
@@ -74,6 +74,38 @@ export const deletePlacement = async (req, res) => {
     res.json({ message: "Placement deleted successfully" });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+export const updatePlacement = async (req, res) => {
+  try {
+    if (req.user.role !== "DepartmentAdmin") {
+      return res.status(403).json({ message: "Only department admins can update placements" });
+    }
+
+    const { id } = req.params;
+    const { company, role, package: pkg, eligibility, description, date, batches } = req.body;
+
+    const placementId = toObjectId(id); // validate MongoDB ID
+    if (!placementId) return res.status(400).json({ message: "Invalid placement ID" });
+
+    const placement = await Placement.findById(placementId);
+    if (!placement) return res.status(404).json({ message: "Placement not found" });
+
+    // Only update fields if provided
+    if (company) placement.company = company;
+    if (role) placement.role = role;
+    if (pkg) placement.package = pkg;
+    if (eligibility) placement.eligibility = eligibility;
+    if (description !== undefined) placement.description = description;
+    if (date) placement.date = date;
+    if (batches && batches.length > 0) placement.batches = batches;
+
+    await placement.save();
+
+    res.status(200).json({ message: "Placement updated successfully", placement });
+  } catch (err) {
+    console.error("updatePlacement Error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };

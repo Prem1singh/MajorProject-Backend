@@ -39,7 +39,7 @@ export const getStudentPerformance = async (req, res) => {
       .lean();
 
     const batchMarksFiltered = batchMarks.filter(
-      m => String(m.student.batch) === String(batchId)
+      m => String(m.student?.batch) === String(batchId)
     );
 
     const batchComparison = marksTrend.map(({ exam, marks: myMarks }) => {
@@ -92,7 +92,7 @@ export const getBatchPerformance = async (req, res) => {
 export const getSubjectPerformance = async (req, res) => {
   try {
     const subjectId = req.params.subjectId;
-
+   
     // Fetch marks for this subject
     const marks = await Marks.find({ subject: subjectId })
       .populate("student", "name")
@@ -100,7 +100,6 @@ export const getSubjectPerformance = async (req, res) => {
       .lean();
 
     if (!marks.length) return res.json({ exams: [], students: [], trend: [] });
-
     // Get list of exams in order
     const examsSet = new Set();
     marks.forEach(m => examsSet.add(m.exam.name));
@@ -109,9 +108,9 @@ export const getSubjectPerformance = async (req, res) => {
     // Build students array
     const studentsMap = {};
     marks.forEach(m => {
-      const studentId = m.student._id.toString();
+      const studentId = m.student?._id.toString();
       if (!studentsMap[studentId]) {
-        studentsMap[studentId] = { studentId, name: m.student.name, marks: {} };
+        studentsMap[studentId] = { studentId, name: m.student?.name, marks: {} };
       }
       studentsMap[studentId].marks[m.exam.name] = m.obtained;
     });

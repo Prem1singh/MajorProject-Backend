@@ -9,12 +9,13 @@ const courseSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-courseSchema.pre("findOneAndDelete", async function (next) {
-  const courseId = this.getQuery()["_id"];
+// courseSchema.pre("findOneAndDelete", async function (next) {
+//   const courseId = this.getQuery()["_id"];
 
-  await Batch.deleteMany({ course: courseId });
+//   // Delete all batches in this course → triggers batch hook
+//   await Batch.deleteMany({ course: courseId });
 
-  next();
-});
+//   next();
+// });
 
 export default mongoose.models.Course || mongoose.model("Course", courseSchema);

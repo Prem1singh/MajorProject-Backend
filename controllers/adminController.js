@@ -1,6 +1,6 @@
 // controllers/adminController.js
 import bcrypt from "bcryptjs";
-
+import { cascadeDeleteDepartment } from "../util/cascade.js";
 import Department from "../models/Department.js";
 import Course from "../models/Courses.js";
 import Batch from "../models/Batch.js";
@@ -77,45 +77,10 @@ export const deleteDepartment = async (req, res) => {
       return res.status(404).json({ message: "Department not found" });
     }
 
-    // 🔹 Find all courses under this department
-    const courses = await Course.find({ department: id });
+    // 🔹 This triggers all pre("findOneAndDelete") hooks for cascade deletes
+    await cascadeDeleteDepartment(id);
 
-    for (const course of courses) {
-      // 🔹 Find all batches under this course
-      const batches = await Batch.find({ course: course._id });
-
-      for (const batch of batches) {
-        // 🔹 Find all subjects under this batch
-        const subjects = await Subject.find({ batch: batch._id });
-
-        for (const subject of subjects) {
-          // Delete all assignments + submissions
-          const assignments = await Assignment.find({ subject: subject._id });
-          for (const assign of assignments) {
-            await AssignmentSubmission.deleteMany({ assignment: assign._id });
-          }
-          await Assignment.deleteMany({ subject: subject._id });
-
-          // Delete attendance + marks
-          await Attendance.deleteMany({ subject: subject._id });
-          await Marks.deleteMany({ subject: subject._id });
-        }
-
-        // Delete subjects
-        await Subject.deleteMany({ batch: batch._id });
-      }
-
-      // Delete batches
-      await Batch.deleteMany({ course: course._id });
-    }
-
-    // Delete courses
-    await Course.deleteMany({ department: id });
-
-    // Delete users (teachers + students) in this department
-    await User.deleteMany({ department: id });
-
-    // Finally, delete the department itself
+    // 2. Finally delete department itself
     await Department.findByIdAndDelete(id);
 
     res.status(200).json({ message: "✅ Department and all related data deleted successfully" });
@@ -124,6 +89,7 @@ export const deleteDepartment = async (req, res) => {
     res.status(500).json({ message: "Error deleting department", error: err.message });
   }
 };
+
 
 
 // Get courses by department

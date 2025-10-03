@@ -4,7 +4,9 @@ const { Schema } = mongoose;
 import Assignment from "./Assignment.js"
 import Attendance from "./Attendance.js"
 import Mark from "./Marks.js"
-
+import AssignmentSubmission from "./AssignmentSubmission.js";
+import Announcement from "./Announcement.js";
+import StudyMaterial from "./StudyMaterial.js";
 
 const subjectSchema = new Schema(
   {
@@ -53,14 +55,31 @@ const subjectSchema = new Schema(
   { timestamps: true }
 );
 
-subjectSchema.pre("findOneAndDelete", async function (next) {
-  const subjectId = this.getQuery()["_id"];
+// subjectSchema.pre("findOneAndDelete", async function (next) {
+//   const subjectId = this.getQuery()["_id"];
 
-  await Assignment.deleteMany({ subject: subjectId });
-  await Attendance.deleteMany({ subject: subjectId });
-  await Mark.deleteMany({ subject: subjectId });
+//   // Delete assignments and their submissions
+//   const assignments = await Assignment.find({ subject: subjectId });
+//   for (const assign of assignments) {
+//     await AssignmentSubmission.deleteMany({ assignment: assign._id });
+//   }
+//   await Assignment.deleteMany({ subject: subjectId });
 
-  next();
-});
+//   // Delete attendance records
+//   await Attendance.deleteMany({ subject: subjectId });
+
+//   // Delete marks
+//   await Mark.deleteMany({ subject: subjectId });
+
+//   // Delete study materials
+//   await StudyMaterial.deleteMany({ subject: subjectId });
+
+//   // Delete announcements
+//   await Announcement.deleteMany({ subject: subjectId });
+
+//   next();
+// });
+
+
 
 export default mongoose.models.Subject || mongoose.model("Subject", subjectSchema);

@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import Subject from "../models/Subject.js";
 import Assignment from "../models/Assignment.js";
 import AssignmentSubmission from "../models/AssignmentSubmission.js";
+import { cascadeDeleteBatch } from "../util/cascade.js";
 // Helper
 const toObjectId = (id) => {
   try {
@@ -142,31 +143,8 @@ export const deleteBatch = async (req, res) => {
     if (!batch) {
       return res.status(404).json({ message: "Batch not found" });
     }
-
-    // 🔹 Find all subjects in this batch
-    const subjects = await Subject.find({ batch: batch._id });
-
-    for (const subject of subjects) {
-      // Find assignments for this subject
-      const assignments = await Assignment.find({ subject: subject._id });
-
-      // Delete all submissions for these assignments
-      await AssignmentSubmission.deleteMany({
-        assignment: { $in: assignments.map((a) => a._id) },
-      });
-
-      // Delete assignments
-      await Assignment.deleteMany({ subject: subject._id });
-    }
-
-    // Delete subjects
-    await Subject.deleteMany({ batch: batch._id });
-
-    // 🔹 Delete students of this batch
-    await User.deleteMany({ batch: batch._id, role: "Student" });
-
-    // Finally, delete batch
-    await batch.deleteOne();
+    await cascadeDeleteBatch(batch._id)
+    await Batch.findByIdAndDelete(batch._id);
 
     res.status(200).json({
       message: "Batch, related subjects, assignments, submissions, and students deleted successfully",
