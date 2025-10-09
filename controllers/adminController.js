@@ -308,7 +308,6 @@ export const getStudentsByBatch = async (req, res) => {
     const { batchId } = req.params;
 
     const students = await User.find({ role: "Student", batch: batchId })
-      .select("name email rollNo");
 
     if (!students.length) {
       return res.status(404).json({ message: "No students found for this batch" });

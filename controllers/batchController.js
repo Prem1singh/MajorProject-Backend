@@ -165,6 +165,7 @@ export const getStudentsInBatch = async (req, res) => {
     const students = await User.find({ batch: batchId, role: "Student" })
       .select("-password")
       .populate("batch", "name year totalSem status");
+
     res.status(200).json(students);
   } catch (err) {
     console.error("Get Students in Batch Error:", err);

@@ -37,6 +37,7 @@ export const loginUser = async (req, res) => {
         semester: user.semester,
         empId: user.employeeId,
         profileUrl: user.profileUrl,
+        outcome:user.outcome
       },
     });
   } catch (err) {
@@ -104,9 +105,11 @@ export const getProfile = async (req, res) => {
 // UPDATE PROFILE
 export const updateUserProfile = async (req, res) => {
   try {
-    const disallowedFields = ["role", "rollNo", "employeeId"]; // fixed empId name
-    const updates = { ...req.body }; // ✅ convert to plain object
+    console.log("hii")
+    const disallowedFields = ["role", "rollNo", "employeeId"];
+    const updates = { ...req.body }; // plain object copy
 
+    // Prevent updating disallowed fields
     if (updates) {
       const updateKeys = Object.keys(updates);
       for (let key of updateKeys) {
@@ -115,11 +118,24 @@ export const updateUserProfile = async (req, res) => {
         }
       }
     }
-
-    if (req.file && req.file.path) {
-      updates.profileUrl = req.file.path; // ✅ match your user model
+    console.log(req.files)
+    // Handle uploaded files (profile picture & certificate)
+    if (req.files?.profilePicture) {
+      updates.profileUrl = req.files.profilePicture[0].path;
     }
-
+    if (req.files?.outcomeCertificate) {
+      updates.outcome = {
+        ...updates.outcome,
+        certificate: req.files.outcomeCertificate[0].path,
+      };
+    }
+    if (req.body.outcomeType) {
+      updates.outcome = {
+        ...updates.outcome,
+        type: req.body.outcomeType,
+      };
+    }
+    
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { $set: updates },
@@ -133,6 +149,7 @@ export const updateUserProfile = async (req, res) => {
       user,
     });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Error updating profile", error: err.message });
   }
 };

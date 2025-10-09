@@ -65,7 +65,16 @@ const userSchema = new mongoose.Schema(
       type: String, 
       default: "" 
     },
-
+    outcome: {
+      type: {
+        type: String,
+        enum: ["NET-JRF", "IT", "GovtJob"],
+      },
+      certificate: {
+        type: String, // URL or file path of certificate
+        default: "",
+      },
+    },
     refreshToken: { type: String },
     resetPasswordToken: { type: String },
     resetPasswordExpire: { type: Date },
