@@ -105,7 +105,7 @@ export const getProfile = async (req, res) => {
 // UPDATE PROFILE
 export const updateUserProfile = async (req, res) => {
   try {
-    console.log("hii")
+
     const disallowedFields = ["role", "rollNo", "employeeId"];
     const updates = { ...req.body }; // plain object copy
 
@@ -118,7 +118,7 @@ export const updateUserProfile = async (req, res) => {
         }
       }
     }
-    console.log(req.files)
+
     // Handle uploaded files (profile picture & certificate)
     if (req.files?.profilePicture) {
       updates.profileUrl = req.files.profilePicture[0].path;
