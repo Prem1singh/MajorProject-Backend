@@ -99,7 +99,7 @@ export const getProfile = async (req, res) => {
     res.status(200).json(user);
   } catch (err) {
     res.status(500).json({ message: "Error fetching profile", error: err.message });
-  }
+  } 
 };
 
 // UPDATE PROFILE
