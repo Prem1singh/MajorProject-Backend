@@ -1,6 +1,6 @@
 // models/Course.js
 import mongoose from "mongoose";
-import Batch from "./Batch.js";
+
 
 const courseSchema = new mongoose.Schema({
   name: { type: String, required: true }, // MCA, BCA, B.Tech CSE

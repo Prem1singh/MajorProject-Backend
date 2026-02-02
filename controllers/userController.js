@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { generateTokens } from "../util/generateTokens.js";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import Courses from "../models/Courses.js";
 
 // LOGIN
 export const loginUser = async (req, res) => {
@@ -10,18 +11,23 @@ export const loginUser = async (req, res) => {
 
     email = email.trim().toLowerCase();
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).populate("batch");
     
     if (!user) return res.status(404).json({ message: "User not found" });
-
+   
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
 
     const { accessToken, refreshToken } = generateTokens(user);
 
     user.refreshToken = refreshToken;
+    
     await user.save();
-
+    let course
+    if(user.role=="Student"){
+       course=await Courses.findById(user.batch.course);
+    }
+  
     res.status(200).json({
       message: "Login successful",
       accessToken,
@@ -33,11 +39,12 @@ export const loginUser = async (req, res) => {
         mobile: user.mobile,
         role: user.role,
         rollNo: user.rollNo,
-        batch: user.batch,
+        batch: user?.batch?._id,
         semester: user.semester,
         empId: user.employeeId,
         profileUrl: user.profileUrl,
-        outcome:user.outcome
+        outcome:user.outcome,
+        course:course?.name
       },
     });
   } catch (err) {
@@ -95,8 +102,22 @@ export const logout = async (req, res) => {
 // GET PROFILE
 export const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
-    res.status(200).json(user);
+    const user = await User.findById(req.user.id).select("-password").populate("batch");
+    const course=await Courses.findById(user.batch.course);
+    res.status(200).json({user:{
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      mobile: user.mobile,
+      role: user.role,
+      rollNo: user.rollNo,
+      batch: user.batch._id,
+      semester: user.semester,
+      empId: user.employeeId,
+      profileUrl: user.profileUrl,
+      outcome:user.outcome,
+      course:course.name
+    }});
   } catch (err) {
     res.status(500).json({ message: "Error fetching profile", error: err.message });
   } 
@@ -140,13 +161,26 @@ export const updateUserProfile = async (req, res) => {
       req.user.id,
       { $set: updates },
       { new: true }
-    ).select("-password");
+    ).select("-password").populate("batch");
 
     if (!user) return res.status(404).json({ message: "User not found" });
-
+    const course=await Courses.findById(user.batch.course);
     res.status(200).json({
       message: "Profile updated successfully",
-      user,
+      user:{
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        mobile: user.mobile,
+        role: user.role,
+        rollNo: user.rollNo,
+        batch: user.batch._id,
+        semester: user.semester,
+        empId: user.employeeId,
+        profileUrl: user.profileUrl,
+        outcome:user.outcome,
+        course:course.name
+      }
     });
   } catch (err) {
     console.error(err);
