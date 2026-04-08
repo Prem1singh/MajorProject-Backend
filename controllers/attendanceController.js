@@ -4,6 +4,80 @@ import Attendance from "../models/Attendance.js";
 import Subject from "../models/Subject.js";
 import User from "../models/User.js";
 
+
+import Batch from "../models/Batch.js";
+
+
+export const getBatchAttendanceAnalytics = async (req, res) => {
+  try {
+    const { batchId } = req.params;
+
+    // 1. Check if Batch exists
+    const batch = await Batch.findById(batchId);
+    if (!batch) return res.status(404).json({ message: "Batch not found" });
+
+    // 2. Fetch Students of this batch (Sabse pehle students chahiye)
+    const students = await User.find({ batch: batchId, role: "Student" })
+      .select("_id name rollNo")
+      .lean();
+    
+    if (students.length === 0) return res.status(200).json([]);
+
+    const studentIds = students.map(s => s._id);
+
+    // 3. Fetch Subjects linked to this batch or its course
+    const subjects = await Subject.find({ 
+      $or: [{ batch: batchId }, { course: batch.course }] 
+    }).select("name code").lean();
+
+    // 4. Get Analytics for each subject
+    const analytics = await Promise.all(subjects.map(async (subj) => {
+      // Is subject ki is batch ke students ke liye attendance records
+      const records = await Attendance.find({ 
+        subject: subj._id, 
+        student: { $in: studentIds } 
+      }).lean();
+
+      // Attendance mark hi nahi hui toh skip/default return
+      if (records.length === 0) return null;
+
+      // Student-wise breakdown
+      const studentBreakdown = students.map(st => {
+        const stRecords = records.filter(r => String(r.student) === String(st._id));
+        const present = stRecords.filter(r => r.status.toLowerCase() === 'present').length;
+        const total = stRecords.length;
+
+        return {
+          name: st.name,
+          rollNo: st.rollNo,
+          percentage: total > 0 ? ((present / total) * 100).toFixed(1) : "0.0",
+          present,
+          total
+        };
+      });
+
+      const totalPresent = records.filter(r => r.status.toLowerCase() === 'present').length;
+      const avg = ((totalPresent / records.length) * 100).toFixed(1);
+
+      return {
+        subjectName: subj.name,
+        subjectCode: subj.code,
+        avgAttendance: avg,
+        studentBreakdown
+      };
+    }));
+
+    // Null results (jinki attendance nahi hai) unhe filter karke bhej do
+    const finalData = analytics.filter(item => item !== null);
+
+    res.status(200).json(finalData);
+
+  } catch (err) {
+    console.error("Analytics Error:", err);
+    res.status(500).json({ message: "Internal Server Error", error: err.message });
+  }
+};
+
 const toObjectId = (id) => {
   try {
     return new mongoose.Types.ObjectId(id);

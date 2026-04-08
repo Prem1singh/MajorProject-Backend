@@ -8,54 +8,63 @@ export const getStudentPerformance = async (req, res) => {
   try {
     const studentId = req.user._id;
 
-    // 1️⃣ Fetch marks for this student
+    // 1️⃣ Student ki batch detail nikaalo comparison ke liye
+    const studentProfile = await User.findById(studentId).select("batch").lean();
+    if (!studentProfile) return res.status(404).json({ message: "Student not found" });
+    const batchId = studentProfile.batch;
+
+    // 2️⃣ Student ke saare marks fetch karo (Subject and Exam detail ke saath)
     const marks = await Marks.find({ student: studentId })
       .populate("subject", "name")
-      .populate("exam", "name")
+      .populate("exam", "name totalMarks")
       .lean();
-
+      
     if (!marks.length) return res.json({ marksTrend: [], batchComparison: [] });
 
-    // 2️⃣ Build marksTrend for line chart (per exam, sum across subjects)
-    const marksTrendMap = {};
-    marks.forEach(m => {
-      if (!marksTrendMap[m.exam.name]) marksTrendMap[m.exam.name] = 0;
-      marksTrendMap[m.exam.name] += m.obtained;
-    });
-
-    const marksTrend = Object.entries(marksTrendMap).map(([exam, obtained]) => ({
-      exam,
-      marks: obtained
+    // 3️⃣ marksTrend: Har subject ka obtained aur uska total marks
+    const marksTrend = marks.map(m => ({
+      exam: m.exam.name,
+      subject: m.subject.name,
+      obtained: m.obtained,
+      totalMarks: m.exam.totalMarks || 100, // Agar schema mein totalMarks hai toh wahi use hoga
+      examId: m.exam._id
     }));
 
-    // 3️⃣ Batch comparison
-    const student = await User.findById(studentId).lean();
-    const batchId = student.batch;
-
-    // Fetch all marks of students in same batch for same exams
+    // 4️⃣ Batch Comparison Logic
     const examIds = marks.map(m => m.exam._id);
-    const batchMarks = await Marks.find({ exam: { $in: examIds } })
+    
+    // Batch ke baaki sabhi bacho ke marks fetch karo inhi exams ke liye
+    const allBatchMarks = await Marks.find({ exam: { $in: examIds } })
       .populate("student", "batch")
       .lean();
 
-    const batchMarksFiltered = batchMarks.filter(
-      m => String(m.student?.batch) === String(batchId)
+    // Sirf usi batch ke bacho ka data filter karo
+    const filteredBatchMarks = allBatchMarks.filter(
+      m => m.student && String(m.student.batch) === String(batchId)
     );
 
-    const batchComparison = marksTrend.map(({ exam, marks: myMarks }) => {
-      const examObj = marks.find(m => m.exam.name === exam);
-      const examBatchMarks = batchMarksFiltered.filter(
-        m => String(m.exam) === String(examObj.exam._id)
+    // Har subject/exam ke liye Batch ka total data taiyar karo
+    const batchComparison = marksTrend.map((myRecord) => {
+      // Is specific exam ke liye batch ke sabhi bacho ke marks
+      const subjectBatchMarks = filteredBatchMarks.filter(
+        m => String(m.exam) === String(myRecord.examId) && 
+             String(m.subject) === String(marks.find(x => x.subject.name === myRecord.subject).subject._id)
       );
-      const total = examBatchMarks.reduce((sum, m) => sum + m.obtained, 0);
-      const average = examBatchMarks.length ? total / examBatchMarks.length : 0;
+
+      let batchObtainedSum = 0;
+      subjectBatchMarks.forEach(m => batchObtainedSum += m.obtained);
+
       return {
-        exam,
-        myMarks,
-        batchAverage: parseFloat(average.toFixed(2))
+        exam: myRecord.exam,
+        subject: myRecord.subject,
+        myObtained: myRecord.obtained,
+        myTotal: myRecord.totalMarks,
+        batchAvgObtained: subjectBatchMarks.length > 0 
+          ? (batchObtainedSum / subjectBatchMarks.length).toFixed(1) 
+          : 0
       };
     });
-
+    console.log(marksTrend)
     res.json({ marksTrend, batchComparison });
   } catch (err) {
     console.error(err);

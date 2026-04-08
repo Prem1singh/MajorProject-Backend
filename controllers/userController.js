@@ -126,37 +126,40 @@ export const getProfile = async (req, res) => {
 // UPDATE PROFILE
 export const updateUserProfile = async (req, res) => {
   try {
-
     const disallowedFields = ["role", "rollNo", "employeeId"];
-    const updates = { ...req.body }; // plain object copy
+    const updates = { ...req.body };
 
-    // Prevent updating disallowed fields
-    if (updates) {
-      const updateKeys = Object.keys(updates);
-      for (let key of updateKeys) {
-        if (disallowedFields.includes(key)) {
-          return res.status(400).json({ message: `Field ${key} cannot be updated` });
-        }
+    // 1. Prevent updating disallowed fields
+    const updateKeys = Object.keys(updates);
+    for (let key of updateKeys) {
+      if (disallowedFields.includes(key)) {
+        return res.status(400).json({ message: `Field ${key} cannot be updated` });
       }
     }
 
-    // Handle uploaded files (profile picture & certificate)
+    // 2. Handle profile picture upload
     if (req.files?.profilePicture) {
       updates.profileUrl = req.files.profilePicture[0].path;
     }
-    if (req.files?.outcomeCertificate) {
-      updates.outcome = {
-        ...updates.outcome,
-        certificate: req.files.outcomeCertificate[0].path,
-      };
+
+    // 3. Handle Student-specific Outcome Data
+    if (req.user.role === "Student") {
+      const outcomeData = {};
+      if (req.files?.outcomeCertificate) {
+        outcomeData.certificate = req.files.outcomeCertificate[0].path;
+      }
+      if (req.body.outcomeType) {
+        outcomeData.type = req.body.outcomeType;
+      }
+      
+      // Agar outcome data hai, tabhi updates mein add karein
+      if (Object.keys(outcomeData).length > 0) {
+        updates.outcome = outcomeData;
+      }
     }
-    if (req.body.outcomeType) {
-      updates.outcome = {
-        ...updates.outcome,
-        type: req.body.outcomeType,
-      };
-    }
-    
+
+    // 4. Update User in Database
+    // Populate batch is only useful for Students
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { $set: updates },
@@ -164,26 +167,38 @@ export const updateUserProfile = async (req, res) => {
     ).select("-password").populate("batch");
 
     if (!user) return res.status(404).json({ message: "User not found" });
-    const course=await Courses.findById(user.batch.course);
+
+    // 5. Smart Response Logic (Handles all roles)
+    let courseName = "-";
+    
+    // Sirf Student aur jinke paas batch ho, unhi ke liye Course fetch karein
+    if (user.role === "Student" && user.batch) {
+      const courseData = await Courses.findById(user.batch.course);
+      courseName = courseData ? courseData.name : "-";
+    }
+
+    // 6. Final Response
     res.status(200).json({
       message: "Profile updated successfully",
-      user:{
+      user: {
         id: user._id,
         name: user.name,
         email: user.email,
         mobile: user.mobile,
         role: user.role,
-        rollNo: user.rollNo,
-        batch: user.batch._id,
-        semester: user.semester,
-        empId: user.employeeId,
+        // Role based fields (using optional chaining)
+        rollNo: user.rollNo || null,
+        empId: user.employeeId || null,
+        batch: user.batch?._id || null,
+        semester: user.semester || null,
         profileUrl: user.profileUrl,
-        outcome:user.outcome,
-        course:course.name
+        outcome: user.outcome || null,
+        course: courseName // Will be "-" for Teachers/Admins
       }
     });
+
   } catch (err) {
-    console.error(err);
+    console.error("Profile Update Error:", err);
     res.status(500).json({ message: "Error updating profile", error: err.message });
   }
 };

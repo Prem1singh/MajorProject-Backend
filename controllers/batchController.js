@@ -4,6 +4,8 @@ import Course from "../models/Courses.js";
 import mongoose from "mongoose";
 import Subject from "../models/Subject.js";
 import Assignment from "../models/Assignment.js";
+import Attendance from "../models/Attendance.js";
+
 import AssignmentSubmission from "../models/AssignmentSubmission.js";
 import { cascadeDeleteBatch } from "../util/cascade.js";
 // Helper
@@ -95,18 +97,19 @@ export const getBatchById = async (req, res) => {
 };
 
 // ----------------- UPDATE BATCH -----------------
-
 export const updateBatch = async (req, res) => {
   try {
-    // Find the batch first
+    // 1. Purana batch data fetch karein
     const batch = await Batch.findById(req.params.id);
     if (!batch) return res.status(404).json({ message: "Batch not found" });
 
     const oldSemester = batch.currentSem;
+    const oldStatus = batch.status; // Purana status
+    
     const newSemester = req.body.currentSem;
+    const newStatus = req.body.status; // Naya status jo frontend se aa raha hai
 
-
-    // Update the batch
+    // 2. Batch ko update karein
     const updatedBatch = await Batch.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -115,21 +118,42 @@ export const updateBatch = async (req, res) => {
       .populate("course", "name code")
       .populate("createdBy", "name email");
 
-    // ✅ If semester has changed, update only students in this batch
+    // ✅ Logic 1: Semester Update (Sirf students ka semester badlega, attendance nahi uregi)
     if (newSemester && newSemester !== oldSemester) {
       await User.updateMany(
-        { batch: batch._id, role: "Student" }, // only students
+        { batch: batch._id, role: "Student" },
         { semester: newSemester }
       );
     }
 
-    res.status(200).json({ message: "Batch updated successfully", batch: updatedBatch });
+    // ✅ Logic 2: Attendance Wipe (Sirf tab jab status "Completed" ho jaye)
+    // Hum check kar rahe hain ki naya status 'Completed' hai aur pehle nahi tha
+    console.log(newStatus)
+    if (newStatus === "Completed" && oldStatus !== "Completed") {
+      
+      // Is batch ke saare students ki IDs nikaalein
+      const students = await User.find({ batch: batch._id, role: "Student" }).select("_id");
+      const studentIds = students.map(s => s._id);
+
+      if (studentIds.length > 0) {
+        // Purani saari attendance permanently delete
+        await Attendance.deleteMany({ student: { $in: studentIds } });
+        console.log(`Cleanup: Attendance wiped for batch ${batch.name} as status marked COMPLETED.`);
+      }
+    }
+
+    res.status(200).json({ 
+      message: newStatus === "Completed" 
+        ? "Batch completed and attendance records cleared" 
+        : "Batch updated successfully", 
+      batch: updatedBatch 
+    });
+
   } catch (err) {
     console.error("Update Batch Error:", err);
     res.status(500).json({ message: "Error updating batch", error: err.message });
   }
 };
-
 // ----------------- DELETE BATCH -----------------
 export const deleteBatch = async (req, res) => {
   try {

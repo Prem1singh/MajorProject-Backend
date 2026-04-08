@@ -1,51 +1,88 @@
 import Doubt from "../models/Doubt.js";
+import Batch from "../models/Batch.js";
 
 // GET all doubts for a batch
 export const getAllDoubts = async (req, res) => {
-    try {
-      const batchId = req.user.batch; // use batch from logged-in user
-      if (!batchId) return res.status(400).json({ message: "Batch not found for user" });
-  
-      const doubts = await Doubt.find({ batch: batchId })
-        .sort({ createdAt: -1 })
-        .lean(); // convert to plain JS objects
-  
-      // Add canDelete flags for doubts and answers
-      const formattedDoubts = doubts.map((doubt) => ({
-        ...doubt,
-        canDelete: String(doubt.student) === String(req.user._id),
-        answers: doubt.answers.map((ans) => ({
-          ...ans,
-          canDelete: String(ans.user) === String(req.user._id),
-        })),
-      }));
-  
-      res.json(formattedDoubts);
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: "Server error" });
-    }
-  };
+  try {
+    const userBatch = await Batch.findById(req.user.batch).select("course");
+    const courseId = userBatch.course;
+
+    const doubts = await Doubt.find({ course: courseId })
+      .populate({
+        path: "student",
+        select: "name",
+        populate: { path: "batch", select: "name" } // Doubt puchne wale ka batch
+      })
+      .populate({
+        path: "answers.user", // Answer dene wale bache ka batch
+        select: "name",
+        populate: { path: "batch", select: "name" } 
+      })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const formattedDoubts = doubts.map((doubt) => ({
+      ...doubt,
+      studentName: doubt.student?.name,
+      batchName: doubt.student?.batch?.name,
+      answers: (doubt.answers || []).map((ans) => ({
+        ...ans,
+        userName: ans.user?.name,
+        userBatchName: ans.user?.batch?.name, // Direct User Schema se nikal raha hai
+        canDelete: String(ans.user?._id) === String(req.user._id),
+      })),
+      canDelete: String(doubt.student?._id) === String(req.user._id),
+    }));
+
+    res.json(formattedDoubts);
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+};
 
 // POST a new doubt
+
+
+
 export const postDoubt = async (req, res) => {
   try {
     const { question } = req.body;
-    if (!question || !question.trim())
+    if (!question || !question.trim()) {
       return res.status(400).json({ message: "Question is required" });
+    }
 
-    // Get student info and batch from authenticated user
-    const student = req.user._id;
+    // 1. Student info from auth middleware
+    const studentId = req.user._id;
     const studentName = req.user.name;
-    const batch = req.user.batch; // batch comes from user object
+    const batchId = req.user.batch; 
 
-    const newDoubt = new Doubt({ student, studentName, batch, question });
+    if (!batchId) {
+      return res.status(400).json({ message: "You must be assigned to a batch to post doubts." });
+    }
+
+    // 2. Fetch the batch to get the Course ID
+    const batchDetails = await Batch.findById(batchId).select("course");
+    
+    if (!batchDetails || !batchDetails.course) {
+      return res.status(404).json({ message: "Course context not found for your batch." });
+    }
+
+    const courseId = batchDetails.course;
+
+    // 3. Save doubt with Course ID instead of Batch ID
+    const newDoubt = new Doubt({ 
+      student: studentId, 
+      studentName, 
+      course: courseId, // 👈 Now linked to Course
+      question 
+    });
+
     await newDoubt.save();
 
-    res.status(201).json({ message: "Doubt posted successfully" });
+    res.status(201).json({ message: "Doubt posted to your course community successfully!" });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    console.error("Post Doubt Error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
@@ -54,26 +91,34 @@ export const postAnswer = async (req, res) => {
   try {
     const { doubtId } = req.params;
     const { answer } = req.body;
+
     if (!answer || !answer.trim())
       return res.status(400).json({ message: "Answer is required" });
 
     const doubt = await Doubt.findById(doubtId);
     if (!doubt) return res.status(404).json({ message: "Doubt not found" });
-   
-    // Only allow answering within the same batch
-    if (String(doubt.batch) !== String(req.user.batch._id)) {
-      return res.status(403).json({ message: "You cannot answer doubts from another batch" });
+
+    // User ke batch ki details nikaalein (Naam ke liye)
+    const userBatch = await Batch.findById(req.user.batch).select("course name");
+    if (!userBatch) return res.status(400).json({ message: "User batch context missing" });
+
+    // Course Match Check (Senior-Junior allowed, but same course only)
+    if (String(doubt.course) !== String(userBatch.course)) {
+      return res.status(403).json({ message: "You can only answer within your course community." });
     }
 
-    const user = req.user._id;
-    const userName = req.user.name;
+    // Answer push karte waqt batch ka naam bhi save karein
+    doubt.answers.push({ 
+      text: answer, 
+      user: req.user._id, 
+      userName: req.user.name,
+      userBatch: userBatch.name // 👈 Naya field add kiya
+    });
 
-    doubt.answers.push({ text: answer, user, userName });
     await doubt.save();
-
     res.status(201).json({ message: "Answer added successfully" });
   } catch (err) {
-    console.error(err);
+    console.error("Post Answer Error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };

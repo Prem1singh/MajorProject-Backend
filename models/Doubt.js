@@ -10,7 +10,11 @@ const answerSchema = new mongoose.Schema({
 const doubtSchema = new mongoose.Schema({
   student: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   studentName: String,
-  batch: { type: mongoose.Schema.Types.ObjectId, ref: "Batch", required: true }, // associate with batch
+  course: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: "Course", // 👈 Pointing to Course instead of Batch
+    required: true 
+  },
   question: { type: String, required: true },
   answers: [answerSchema],
   createdAt: { type: Date, default: Date.now },

@@ -17,21 +17,30 @@ if (!objId) {
 
 export const getMySubjects = async (req, res) => {
   try {
-    const teacherId = req.user._id; // ✅ logged in teacher
+    const teacherId = req.user._id;
 
     // find subjects where this teacher is assigned
     const subjects = await Subject.find({ teacher: teacherId })
-      .populate("batch", "name year currentSem") // ✅ include currentSem
+      .populate({
+        path: "batch",
+        select: "name year currentSem status",
+        // ✅ Yahan hum sirf 'Active' status wale batches ko hi populate karenge
+        match: { status: "Active" } 
+      })
       .select("name code semester credits type batch")
       .lean();
 
-    // ✅ Only include subjects where semester matches batch.currentSem
+    // ✅ Filtering logic updated:
+    // 1. s.batch check karega ki batch populate hua hai (status Active wala)
+    // 2. s.semester === s.batch.currentSem check karega ki semester match hai
     const currentSemSubjects = subjects.filter(
       (s) => s.batch && s.semester === s.batch.currentSem
     );
 
     if (!currentSemSubjects.length) {
-      return res.status(404).json({ message: "No current semester subjects assigned to you" });
+      return res.status(404).json({ 
+        message: "No active semester subjects found in active batches" 
+      });
     }
 
     res.status(200).json({

@@ -6,6 +6,7 @@ import {
   getAttendance,
   getAttendanceByStudentId,
   getOverallAttendance,
+  getBatchAttendanceAnalytics,
   // getAttendanceByStudentId
 
 } from "../controllers/attendanceController.js";
@@ -14,7 +15,11 @@ import { authMiddleware } from "../middleware/auth.js";
 
 const router = express.Router();
 router.get("/student/overall", authMiddleware, getOverallAttendance);
-
+router.get(
+  "/analytics/:batchId", 
+  authMiddleware, 
+  getBatchAttendanceAnalytics
+);
 router.get("/student/:id", authMiddleware,getAttendance);
 router.post("/", authMiddleware, markAttendance); // Teacher/Admin
 router.get("/", authMiddleware, getAttendance); // Teacher/Admin
